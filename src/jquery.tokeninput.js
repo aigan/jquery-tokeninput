@@ -161,6 +161,10 @@ var methods = {
     get: function() {
         return this.data("tokenInputObject").getTokens();
     },
+    flushCache: function() {
+        this.data("tokenInputObject").flushCache();
+        return this;
+    },
     toggleDisabled: function(disable) {
         this.data("tokenInputObject").toggleDisabled(disable);
         return this;
@@ -281,7 +285,8 @@ $.TokenList = function (input, url_or_data, settings) {
             blurwatch(function(){
                 if(! $(e.currentTarget).is(":focus")){
 //                    log('blur');
-
+                    if(! $(input).data("settings") )
+                        return;
                     if ($(input).data("settings").allowFreeTagging) {
                         add_freetagging_tokens();
                     }
@@ -561,6 +566,10 @@ $.TokenList = function (input, url_or_data, settings) {
         toggleDisabled(disable);
     };
 
+    this.flushCache = function() {
+        cache.flush();
+    }
+
     // Resize input to maximum width so the placeholder can be seen
     resize_input();
 
@@ -634,7 +643,7 @@ $.TokenList = function (input, url_or_data, settings) {
             // Matching first item in search result?
 //            log('***** First result:');
             var first_object = $(first_dropdown_item).data("tokeninput");
-            if( first_object[$(input).data("settings").propertyToSearch] == token ) {
+            if( first_object && (first_object[$(input).data("settings").propertyToSearch] == token) ) {
                 add_token(first_object);
 //                log('match');
             } else {
@@ -811,7 +820,7 @@ $.TokenList = function (input, url_or_data, settings) {
 
     // Delete a token from the token list
     function delete_token (token) {
-        log('delete_token');
+//        log('delete_token');
         // Remove the id from the saved list
         var token_data = $.data(token.get(0), "tokeninput");
         var callback = $(input).data("settings").onDelete;
@@ -933,6 +942,13 @@ $.TokenList = function (input, url_or_data, settings) {
                     select_dropdown_item($(event.target).closest("li"));
                 })
                 .mousedown(function (event) {
+//                    log("dropdown mousedown");
+                    if($(event.target).closest('a').length)
+                    {
+//                        log("Click on link");
+                        return;
+                    }
+
                     add_token($(event.target).closest("li").data("tokeninput"));
                     hidden_input.change();
                     return false;
@@ -1064,6 +1080,8 @@ $.TokenList = function (input, url_or_data, settings) {
                 } else {
                     ajax_params.url = url;
                     if( $(input).data("settings").data ) {
+//                        log("data settings data");
+//                        log($(input).data("settings").data);
                         ajax_params.data =  $(input).data("settings").data;
                     }
                 }
@@ -1140,14 +1158,14 @@ $.TokenList.Cache = function (options) {
     var data = {};
     var size = 0;
 
-    var flush = function () {
+    this.flush = function () {
         data = {};
         size = 0;
     };
 
     this.add = function (query, results) {
         if(size > settings.max_size) {
-            flush();
+            this.flush();
         }
 
         if(!data[query]) {
